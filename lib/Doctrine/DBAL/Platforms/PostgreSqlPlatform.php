@@ -165,9 +165,10 @@ class PostgreSqlPlatform extends AbstractPlatform
         return "SELECT
                     c.relname, n.nspname AS schemaname
                 FROM
-                   pg_class c, pg_namespace n
+                   pg_class c, pg_namespace n, pg_user u
                 WHERE relkind = 'S' AND n.oid = c.relnamespace AND
-                    (n.nspname NOT LIKE 'pg_%' AND n.nspname != 'information_schema')";
+                    (n.nspname NOT LIKE 'pg_%' AND n.nspname != 'information_schema')
+                    AND u.usename = current_user AND u.usesysid = c.relowner";
     }
 
     public function getListTablesSQL()
