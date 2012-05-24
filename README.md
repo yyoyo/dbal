@@ -9,15 +9,25 @@ to use it with Symfony change your files to:
 deps :
 
 ```
+[doctrine-common]
+    git=http://github.com/doctrine/common.git
+    version=2.2.2
+
 [doctrine-dbal]
     git=https://github.com/yyoyo/dbal.git
     version=2.2.2-postgres
+
+[doctrine]
+    git=http://github.com/doctrine/doctrine2.git
+    version=2.2.2
 ```
 
 deps.lock :
 
 ```
+doctrine-common 2.2.2
 doctrine-dbal 2.2.2-postgres
+doctrine 2.2.2
 ```
 
 This branch is experimental !!!
