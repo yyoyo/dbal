@@ -167,8 +167,9 @@ class PostgreSqlPlatform extends AbstractPlatform
                 FROM
                    pg_class c, pg_namespace n, pg_user u
                 WHERE relkind = 'S' AND n.oid = c.relnamespace AND
-                    (n.nspname NOT LIKE 'pg_%' AND n.nspname != 'information_schema') and has_schema_privilege(n.nspname,'USAGE')
-                    AND u.usename = current_user AND u.usesysid = c.relowner";
+                    (n.nspname NOT LIKE 'pg_%' AND n.nspname not in ('information_schema', 'public')) AND
+                    has_schema_privilege(n.nspname,'USAGE')
+                    AND u.usename = current_user";
     }
 
     public function getListTablesSQL()
