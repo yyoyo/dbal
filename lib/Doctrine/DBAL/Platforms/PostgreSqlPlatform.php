@@ -178,7 +178,7 @@ class PostgreSqlPlatform extends AbstractPlatform
 
     public function getListDatabasesSQL()
     {
-        return 'SELECT datname FROM pg_database';
+        return "SELECT datname FROM pg_database where has_database_privilege(datname,'CONNECT');";
     }
 
     public function getListSequencesSQL($database)
@@ -188,32 +188,34 @@ class PostgreSqlPlatform extends AbstractPlatform
                 FROM
                    pg_class c, pg_namespace n, pg_user u
                 WHERE relkind = 'S' AND n.oid = c.relnamespace AND
-                    (n.nspname NOT LIKE 'pg_%' AND n.nspname != 'information_schema')
+                    (n.nspname NOT LIKE 'pg_%' AND n.nspname != 'information_schema') and has_schema_privilege(n.nspname,'USAGE')
                     AND u.usename = current_user AND u.usesysid = c.relowner";
     }
 
     public function getListTablesSQL()
     {
         return "SELECT tablename AS table_name, schemaname AS schema_name
-                FROM pg_tables WHERE schemaname NOT LIKE 'pg_%' AND schemaname != 'information_schema' AND tablename != 'geometry_columns' AND tablename != 'spatial_ref_sys'";
+                FROM pg_tables WHERE schemaname NOT LIKE 'pg_%' AND schemaname != 'information_schema' and has_schema_privilege(schemaname,'USAGE')
+                AND tablename != 'geometry_columns' AND tablename != 'spatial_ref_sys'";
     }
 
     public function getListViewsSQL($database)
     {
-        return 'SELECT viewname, definition FROM pg_views';
+        return "SELECT viewname, definition FROM pg_views where has_schema_privilege(schemaname,'USAGE')";
     }
 
     public function getListTableForeignKeysSQL($table, $database = null)
     {
         return "SELECT r.conname, pg_catalog.pg_get_constraintdef(r.oid, true) as condef
                   FROM pg_catalog.pg_constraint r
+                  INNER JOIN pg_namespace n on r.connamespace = n.oid
                   WHERE r.conrelid =
                   (
                       SELECT c.oid
                       FROM pg_catalog.pg_class c, pg_catalog.pg_namespace n
                       WHERE " .$this->getTableWhereClause($table) ." AND n.oid = c.relnamespace
                   )
-                  AND r.contype = 'f'";
+                  AND r.contype = 'f'AND has_schema_privilege(n.nspname,'USAGE')";
     }
 
     public function getCreateViewSQL($name, $sql)
@@ -231,14 +233,15 @@ class PostgreSqlPlatform extends AbstractPlatform
         return "SELECT
                     relname
                 FROM
-                    pg_class
-                WHERE oid IN (
+                    pg_class c
+                    INNER JOIN pg_namespace n on n.oid=c.relnamespace
+                WHERE c.oid IN (
                     SELECT indexrelid
                     FROM pg_index, pg_class
                     WHERE pg_class.relname = '$table'
                         AND pg_class.oid = pg_index.indrelid
                         AND (indisunique = 't' OR indisprimary = 't')
-                        )";
+                        ) and has_schema_privilege(n.nspname,'USAGE')";
     }
 
     /**
@@ -249,14 +252,17 @@ class PostgreSqlPlatform extends AbstractPlatform
      */
     public function getListTableIndexesSQL($table, $currentDatabase = null)
     {
-        return "SELECT relname, pg_index.indisunique, pg_index.indisprimary,
-                       pg_index.indkey, pg_index.indrelid
-                 FROM pg_class, pg_index
-                 WHERE oid IN (
+        return "SELECT c.relname, i.indisunique, i.indisprimary,
+                i.indkey, i.indrelid
+                 FROM pg_class c 
+                 INNER JOIN pg_index i on i.indexrelid = c.oid
+                 INNER JOIN pg_namespace n on n.oid = c.relnamespace
+                 WHERE c.oid IN (
+                 
                     SELECT indexrelid
                     FROM pg_index si, pg_class sc, pg_namespace sn
                     WHERE " . $this->getTableWhereClause($table, 'sc', 'sn')." AND sc.oid=si.indrelid AND sc.relnamespace = sn.oid
-                 ) AND pg_index.indexrelid = oid";
+                 ) AND has_schema_privilege(n.nspname,'USAGE')";
     }
 
     /**
@@ -310,6 +316,7 @@ class PostgreSqlPlatform extends AbstractPlatform
                         AND a.attrelid = c.oid
                         AND a.atttypid = t.oid
                         AND n.oid = c.relnamespace
+                        AND has_schema_privilege(n.nspname,'USAGE')
                     ORDER BY a.attnum";
     }
 
